@@ -5,17 +5,33 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const app = express();
+
 app.use(cors());
 app.use(express.json({ limit: "2mb" }));
 
-const API_KEYS = process.env.GEMINI_API_KEYS.split(",");
+const API_KEYS = (process.env.GEMINI_API_KEYS || "")
+  .split(",")
+  .map((key) => key.trim())
+  .filter(Boolean);
 
 const TARGET_MODELS = [
   "gemini-2.5-flash"
+  // Nếu key của bạn dùng được Gemini 3 thì đổi thành:
+  // "gemini-3-flash-preview"
 ];
+
+app.get("/", (req, res) => {
+  res.send("Backend OK");
+});
 
 app.post("/analyze", async (req, res) => {
   try {
+    if (API_KEYS.length === 0) {
+      return res.status(500).json({
+        error: "Chưa cấu hình GEMINI_API_KEYS trên server."
+      });
+    }
+
     const { chatText } = req.body;
 
     if (!chatText || chatText.trim().length < 5) {
@@ -31,50 +47,19 @@ Dữ liệu hội thoại:
 - SALE: tin nhắn của nhân viên đang dùng extension
 - KHACH: tin nhắn của khách hàng
 
-NGUYÊN TẮC BẮT BUỘC:
-1. Chỉ phân tích tâm lý, DISC, intent dựa trên dòng "KHACH:".
-2. Dòng "SALE:" chỉ dùng để hiểu bối cảnh và học giọng văn sale.
-3. Không được suy diễn quá mức. Nếu chưa đủ dữ kiện, ghi rõ [Chưa xác minh] hoặc [Suy đoán].
-4. Không bịa thông tin sản phẩm, giá, ưu đãi, lịch học, cam kết kết quả.
-5. Không trả lời kiểu CSKH chung chung. Mỗi gợi ý phải có mục tiêu sale rõ ràng.
-6. Mục tiêu không phải chỉ "trả lời khách", mà là điều khiển hội thoại sang bước tiếp theo.
-7. Tin nhắn phải giống giọng văn SALE khoảng 80%, nhưng sắc hơn, mượt hơn, có định hướng chốt hơn.
-8. Không viết quá dài. Mỗi tin nhắn gợi ý tối đa 3 đoạn ngắn.
-9. Không ép khách, không thao túng, không gây áp lực sai sự thật.
-
-CÁCH PHÂN TÍCH:
-- Xác định cảm xúc khách: vui vẻ / trung lập / bối rối / gấp / nghi ngờ / so sánh / khó chịu.
-- Dự đoán DISC: D / I / S / C. Nếu chưa đủ dữ kiện, ghi [Chưa xác minh].
-- Xác định intent chính: khách đang làm gì ngay trong hội thoại.
-- Xác định intent ẩn: khách thật sự có thể muốn gì đằng sau câu chữ.
-- Đánh giá nhiệt độ khách: lạnh / ấm nhẹ / ấm / nóng / gần chốt.
-- Xác định rào cản lớn nhất đang cản bước tiếp theo.
-- Xác định "next best action": nên hỏi thêm, xác nhận, mở nhu cầu, xử lý nghi ngại, xin thông tin, đề xuất tư vấn, hay chốt nhẹ.
-
-CÁCH GỢI Ý TIN NHẮN:
-Áp dụng mô hình:
-Validation → Pain Point nhẹ → Câu hỏi mở nhu cầu / Next step
-
-Mỗi phương án phải có:
-- Mục tiêu rõ ràng
-- Tin nhắn có thể copy gửi ngay
-- Không văn mẫu
-- Tự nhiên như người thật
-- Có "Dạ", "ạ", "em" nếu phù hợp style sale
-- Ưu tiên mở nhu cầu và dẫn dắt khách sang bước tiếp theo
-
-ĐIỀU CẤM:
-- Không chỉ nói "em nhận được rồi ạ" rồi kết thúc.
-- Không hỏi lan man.
-- Không phân tích DISC chắc chắn khi dữ kiện yếu.
-- Không bịa rằng khách có con, có nhu cầu học, muốn giảm giá... nếu chưa có dữ kiện.
-- Không dùng ngôn ngữ quá robot như "liều thuốc đặc trị" trong tin nhắn gửi khách.
-- Không đưa thông tin sản phẩm Sworld nếu hội thoại chưa cung cấp.
+QUY TẮC:
+- Chỉ phân tích tâm lý, DISC, intent dựa trên KHACH.
+- SALE chỉ dùng để hiểu bối cảnh và học giọng văn.
+- Không bịa thông tin sản phẩm, giá, ưu đãi, lịch học.
+- Nếu chưa đủ dữ kiện, ghi [Chưa xác minh] hoặc [Suy đoán].
+- Mỗi gợi ý phải giúp sale điều khiển hội thoại sang bước tiếp theo.
+- Tin nhắn gợi ý giống style SALE khoảng 80%, nhưng mượt và sắc hơn.
+- Không viết dài. Mỗi tin nhắn tối đa 3 đoạn ngắn.
 
 Hội thoại:
 ${chatText}
 
-Trả lời theo format ngắn gọn, dễ đọc:
+Trả lời đúng format:
 
 ## 1. Chẩn đoán nhanh
 - Cảm xúc khách:
@@ -86,7 +71,7 @@ Trả lời theo format ngắn gọn, dễ đọc:
 - Next best action:
 
 ## 2. Insight sale cần chú ý
-Viết 2-3 gạch đầu dòng, tập trung vào điều giúp sale không làm chết hội thoại.
+-
 
 ## 3. Phong cách SALE đã học
 - Cách xưng hô:
@@ -95,7 +80,7 @@ Viết 2-3 gạch đầu dòng, tập trung vào điều giúp sale không làm 
 - Dấu hiệu phong cách:
 
 ## 4. Chiến thuật nên dùng
-Nêu rõ sale nên làm gì trong 1-2 bước tiếp theo.
+-
 
 ## 5. Tin nhắn gợi ý
 
@@ -112,17 +97,16 @@ Mục tiêu:
 Tin nhắn:
 
 ## 6. Điều cần tránh
-- 
-`;  
+-
+`;
 
-    let finalText = null;
     let lastError = "";
 
     for (const model of TARGET_MODELS) {
       for (const key of API_KEYS) {
         try {
           const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key.trim()}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
             {
               method: "POST",
               headers: {
@@ -131,11 +115,7 @@ Tin nhắn:
               body: JSON.stringify({
                 contents: [
                   {
-                    parts: [
-                      {
-                        text: prompt
-                      }
-                    ]
+                    parts: [{ text: prompt }]
                   }
                 ],
                 generationConfig: {
@@ -145,19 +125,20 @@ Tin nhắn:
             }
           );
 
+          const data = await response.json();
+
           if (!response.ok) {
-            lastError = `${model} HTTP ${response.status}`;
+            lastError = `${model} HTTP ${response.status}: ${JSON.stringify(data)}`;
             continue;
           }
 
-          const data = await response.json();
+          const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-          finalText =
-            data?.candidates?.[0]?.content?.parts?.[0]?.text || null;
-
-          if (finalText) {
-            return res.json({ result: finalText });
+          if (text) {
+            return res.json({ result: text });
           }
+
+          lastError = `${model}: Không có text trả về`;
         } catch (err) {
           lastError = err.message;
         }
@@ -174,11 +155,8 @@ Tin nhắn:
     });
   }
 });
-const PORT = process.env.PORT || 3001;
 
-app.get("/", (req, res) => {
-  res.send("Backend OK");
-});
+const PORT = process.env.PORT || 3001;
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server chạy port ${PORT}`);

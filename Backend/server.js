@@ -11,8 +11,7 @@ app.use(express.json({ limit: "2mb" }));
 const API_KEYS = process.env.GEMINI_API_KEYS.split(",");
 
 const TARGET_MODELS = [
-  "gemini-3-flash-preview",
-  "gemini-3-pro-preview"
+  "gemini-3-flash-preview"
 ];
 
 app.post("/analyze", async (req, res) => {

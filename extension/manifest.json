@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Zalo AI Sales Copilot",
+  "version": "1.0",
+  "permissions": ["activeTab", "tabs", "scripting"],
+  "host_permissions": [
+    "https://chat.zalo.me/*"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://chat.zalo.me/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

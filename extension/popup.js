@@ -51,7 +51,7 @@ document.getElementById("btn").onclick = async () => {
         return;
       }
 
-      const api = await fetch("http://localhost:3001/analyze", {
+      const api = await fetch("https://zalo-ai-backend.onrender.com/analyze", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

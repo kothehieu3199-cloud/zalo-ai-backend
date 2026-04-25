@@ -178,17 +178,12 @@ Tin nhắn:
     });
   }
 });
-
-app.get("/", (req, res) => {
-  res.send("Backend OK");
-});
-
 const PORT = process.env.PORT || 3001;
 
 app.get("/", (req, res) => {
   res.send("Backend OK");
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server chạy port ${PORT}`);
 });
